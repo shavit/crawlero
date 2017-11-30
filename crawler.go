@@ -3,6 +3,7 @@ package crawlero
 import (
   "errors"
   "fmt"
+  "log"
   "net/url"
   "net/http"
   "os"
@@ -117,6 +118,20 @@ func (cw *crawler) Listen(done chan error) {
   }
   defer channel.Close()
 
+  err = channel.ExchangeDeclare(
+    "crawlers", // Name
+    "direct", // Type
+    true, // Durable
+    false, // Auto-deleted
+    false, // Internal
+    false, // No-wait
+    nil, // Arguments
+  )
+  if err != nil {
+    done <- err
+    return
+  }
+
   // Declare the queue on both the consumer and publisher, because it might
   //  start before the publisher started
   queue, err = channel.QueueDeclare(
@@ -126,6 +141,18 @@ func (cw *crawler) Listen(done chan error) {
     false, // Exclusive
     false, // No-wait
     nil, // Arguments
+  )
+  if err != nil {
+    done <- err
+    return
+  }
+
+  err = channel.QueueBind(
+    queue.Name, // Queue
+    "route_crawlers", // Routing key
+    "crawlers", // Exchange
+    false,
+    nil,
   )
   if err != nil {
     done <- err
@@ -147,11 +174,8 @@ func (cw *crawler) Listen(done chan error) {
   }
 
   for m := range messages {
-    println("New message")
-    println(m.DeliveryTag)
-    println(m.Body)
-    println("---> Work here")
-    // Work here
+    log.Println("New message", string(m.Body))
+    cw.Save(string(m.Body), 10)
   }
 
   done <- nil
