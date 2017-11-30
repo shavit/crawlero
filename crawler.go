@@ -5,11 +5,13 @@ import (
   "fmt"
   "net/url"
   "net/http"
+  "os"
   "strings"
 
   "golang.org/x/net/proxy"
   "gopkg.in/headzoo/surf.v1"
   "github.com/headzoo/surf/browser"
+  "github.com/streadway/amqp"
 )
 
 type Crawler interface {
@@ -20,6 +22,9 @@ type Crawler interface {
 
   // Save opens and saves a webpage
   Save(u string) (err error)
+
+  // Listen listens to incoming messages
+  Listen(done chan error)
 }
 
 type crawler struct {
@@ -76,4 +81,69 @@ func (cw *crawler) Save(u string) (err error) {
   _, err = cw.conn.DB.Exec(query)
 
   return err
+}
+
+func (cw *crawler) Listen(done chan error) {
+  var err error
+  var user string = os.Getenv("RABBITMQ_DEFAULT_USER")
+  var pass string = os.Getenv("RABBITMQ_DEFAULT_PASS")
+  var vhost string = os.Getenv("RABBITMQ_DEFAULT_VHOST")
+  var host string = os.Getenv("RABBITMQ_DEFAULT_HOST")
+  var connection *amqp.Connection
+  var channel *amqp.Channel
+  var queue amqp.Queue
+  var messages <-chan amqp.Delivery = make(<-chan amqp.Delivery)
+
+  connection, err = amqp.Dial("amqp://"+user+":"+pass+"@"+host+"/"+vhost)
+  if err != nil {
+    done <- err
+    return
+  }
+  defer connection.Close()
+
+  channel, err = connection.Channel()
+  if err != nil {
+    done <- err
+    return
+  }
+  defer channel.Close()
+
+  // Declare the queue on both the consumer and publisher, because it might
+  //  start before the publisher started
+  queue, err = channel.QueueDeclare(
+    "save_page", // Name
+    true, // Durable
+    true, // Delete when unused
+    false, // Exclusive
+    false, // No-wait
+    nil, // Arguments
+  )
+  if err != nil {
+    done <- err
+    return
+  }
+
+  messages, err = channel.Consume(
+    queue.Name, // Queue
+    "", // consumer
+    true, // Auto acknoledge
+    false, // Exclusive
+    false, // No-local
+    false, // No-wait
+    nil, // Args
+  )
+  if err != nil {
+    done <- err
+    return
+  }
+
+  for m := range messages {
+    println("New message")
+    println(m.DeliveryTag)
+    println(m.Body)
+    println("---> Work here")
+    // Work here
+  }
+
+  done <- nil
 }

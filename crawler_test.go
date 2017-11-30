@@ -2,6 +2,7 @@ package crawlero
 
 import (
   "testing"
+  "os"
 )
 
 func TestCreateCrawler(t *testing.T){
@@ -29,5 +30,16 @@ func TestSave(t *testing.T){
   err = cw.Save("http://localhost:0/")
   if err.Error() != "Get http://localhost:0/: dial tcp 127.0.0.1:0: getsockopt: connection refused" {
     t.Error(err)
+  }
+}
+
+func TestListen(t *testing.T){
+  var done chan error = make(chan error)
+  var cw Crawler = NewCrawler(NewConnection())
+  os.Setenv("RABBITMQ_DEFAULT_USER", "wrong-user")
+
+  go cw.Listen(done)
+  if <-done == nil {
+    t.Error("Should not be able to listen with invalid credentials")
   }
 }
