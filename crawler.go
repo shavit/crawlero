@@ -3,6 +3,7 @@ package crawlero
 import (
   "errors"
   "fmt"
+  "io/ioutil"
   "log"
   "net/url"
   "net/http"
@@ -11,8 +12,6 @@ import (
   "time"
 
   "golang.org/x/net/proxy"
-  "gopkg.in/headzoo/surf.v1"
-  "github.com/headzoo/surf/browser"
   "github.com/streadway/amqp"
 )
 
@@ -30,15 +29,15 @@ type Crawler interface {
 }
 
 type crawler struct {
-  bow *browser.Browser
   conn *Connection
+  httpClient *http.Client
   page string
 }
 
 func NewCrawler(conn *Connection) *crawler {
   return &crawler{
-    bow: surf.NewBrowser(),
     conn: conn,
+    httpClient: new(http.Client),
   }
 }
 
@@ -54,7 +53,7 @@ func (cw *crawler) SetProxy(u string) (err error) {
     return err
   }
 
-  cw.bow.SetTransport(&http.Transport{Dial: dialer.Dial})
+  cw.httpClient.Transport = &http.Transport{Dial: dialer.Dial}
 
   return err
 }
@@ -65,7 +64,10 @@ func (cw *crawler) Save(u string, retry int) (err error) {
     return errors.New("Too many attempts")
   }
 
-  err = cw.bow.Open(u)
+  var resp *http.Response
+  var respBody []byte
+  var body string
+  resp, err = cw.httpClient.Get(u)
   if err != nil && retry == 0 {
     return err
   } else if err != nil {
@@ -73,8 +75,14 @@ func (cw *crawler) Save(u string, retry int) (err error) {
     cw.Save(u, retry-1)
     return
   }
+  defer resp.Body.Close()
 
-  var body string = cw.bow.Body()
+  respBody, err = ioutil.ReadAll(resp.Body)
+  if err != nil {
+    return err
+  }
+
+  body = string(respBody)
   body = strings.Replace(body, "'", "\\'", -1)
   body = strings.Replace(body, "'", "''", -1)
   cw.page = body
@@ -175,7 +183,10 @@ func (cw *crawler) Listen(done chan error) {
 
   for m := range messages {
     log.Println("New message", string(m.Body))
-    cw.Save(string(m.Body), 10)
+    err = cw.Save(string(m.Body), 10)
+    if err == nil {
+      m.Ack(true)
+    }
   }
 
   done <- nil
