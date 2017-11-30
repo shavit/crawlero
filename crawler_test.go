@@ -27,7 +27,12 @@ func TestSave(t *testing.T){
   var err error
   var cw Crawler = NewCrawler(NewConnection())
 
-  err = cw.Save("http://localhost:0/")
+  err = cw.Save("http://localhost:0/", -1)
+  if err.Error() != "Too many attempts" {
+    t.Error("Should raise an error after too many attempts.", err)
+  }
+
+  err = cw.Save("http://localhost:0/", 0)
   if err.Error() != "Get http://localhost:0/: dial tcp 127.0.0.1:0: getsockopt: connection refused" {
     t.Error(err)
   }

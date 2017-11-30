@@ -7,6 +7,7 @@ import (
   "net/http"
   "os"
   "strings"
+  "time"
 
   "golang.org/x/net/proxy"
   "gopkg.in/headzoo/surf.v1"
@@ -21,7 +22,7 @@ type Crawler interface {
   SetProxy(u string) (err error)
 
   // Save opens and saves a webpage
-  Save(u string) (err error)
+  Save(u string, retry int) (err error)
 
   // Listen listens to incoming messages
   Listen(done chan error)
@@ -58,10 +59,18 @@ func (cw *crawler) SetProxy(u string) (err error) {
 }
 
 // Save opens and saves a webpage
-func (cw *crawler) Save(u string) (err error) {
+func (cw *crawler) Save(u string, retry int) (err error) {
+  if retry < 0 {
+    return errors.New("Too many attempts")
+  }
+
   err = cw.bow.Open(u)
-  if err != nil {
+  if err != nil && retry == 0 {
     return err
+  } else if err != nil {
+    time.Sleep(time.Duration(600 / retry * retry) * time.Second)
+    cw.Save(u, retry-1)
+    return
   }
 
   var body string = cw.bow.Body()
@@ -126,7 +135,7 @@ func (cw *crawler) Listen(done chan error) {
   messages, err = channel.Consume(
     queue.Name, // Queue
     "", // consumer
-    true, // Auto acknoledge
+    false, // Auto acknoledge
     false, // Exclusive
     false, // No-local
     false, // No-wait
