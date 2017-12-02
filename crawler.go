@@ -16,7 +16,6 @@ import (
 )
 
 type Crawler interface {
-  // TODO: Visit page, save page, set proxy, start multiple workers
 
   // SetProxy set a proxy URL
   SetProxy(u string) (err error)
