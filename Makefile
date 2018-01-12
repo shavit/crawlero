@@ -7,4 +7,4 @@ start_dev:
 		--name crawlero_1 \
 		--net kirra_network \
 		-v ${PWD}:/go/src/github.com/shavit/crawlero \
-		-ti itstommy/crawlero
+		-ti itstommy/crawlero bash
