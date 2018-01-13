@@ -29,6 +29,10 @@ func main(){
         defer wg.Done()
         done = make(chan error)
         cw := crawlero.NewCrawler(dbConn)
+        err := cw.SetProxy("socks5://127.0.0.1:9050")
+        if err != nil {
+          panic(err)
+        }
         go cw.Listen(done)
         println("Starting worker", i)
         <-done

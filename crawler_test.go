@@ -17,7 +17,7 @@ func TestSetProxy(t *testing.T){
   var err error
   var cw Crawler = NewCrawler(NewConnection())
 
-  cw.SetProxy("socks5://127.0.0.1:9050")
+  err = cw.SetProxy("socks5://127.0.0.1:9050")
   if err != nil {
     t.Error("Error setting a proxy:", err)
   }
