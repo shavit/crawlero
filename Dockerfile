@@ -14,4 +14,4 @@ RUN go get ./...
 # ENTRYPOINT ["go", "run", "main.go"]
 
 # Arguments will override
-CMD ["go", "run", "main.go"]
+CMD ["go", "run", "cmd/main.go"]
