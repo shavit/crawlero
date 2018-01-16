@@ -1,5 +1,8 @@
 build:
 	docker build -t itstommy/crawlero .
+	docker run --rm \
+		-ti itstommy/crawlero \
+			go build -o build/listen cmd/main.go
 
 start_dev:
 	docker run --rm \
