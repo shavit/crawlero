@@ -1,6 +1,7 @@
 build:
 	docker build -t itstommy/crawlero .
 	docker run --rm \
+		-e GOOS=${GOOS} \
 		-ti itstommy/crawlero \
 			go build -o build/listen cmd/main.go
 
